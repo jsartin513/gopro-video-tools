@@ -77,11 +77,13 @@ test_config_handling() {
     local temp_config="$TEST_TEMP_DIR/test_config.conf"
     echo "DEFAULT_TOURNAMENT_NAME=\"Test Tournament\"" > "$temp_config"
     
-    # This should not fail during argument parsing (though it may fail later)
-    local output=$("$WORKFLOW_SCRIPT" -c "$temp_config" "$TEST_TEMP_DIR" 2>&1 || true)
+    # Test only the help output with the custom config to avoid interactive mode
+    local output=$("$WORKFLOW_SCRIPT" -c "$temp_config" --help 2>&1)
+    local exit_code=$?
     
-    # The script should at least parse the config argument without syntax error
-    assert_success "[[ ! '$output' =~ 'Unknown option' ]]" "Custom config argument is recognized"
+    # The script should parse the config argument and then show help
+    assert_equals "0" "$exit_code" "Custom config with help flag exits successfully"
+    assert_contains "$output" "Usage:" "Help is shown when config is specified"
 }
 
 # Test syntax validation
