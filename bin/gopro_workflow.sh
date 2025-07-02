@@ -319,32 +319,120 @@ rename_video_files() {
     fi
 }
 
-# Main workflow function
-run_workflow() {
+# Mode selection function
+select_processing_mode() {
+    echo ""
+    log_info "GoPro Video Processing Workflow"
+    echo ""
+    echo "There are two main ways to process your GoPro videos:"
+    echo ""
+    echo "1. INDIVIDUAL MATCH MODE"
+    echo "   • Each processed video represents one complete match"
+    echo "   • Videos already contain team names, round, and court information"
+    echo "   • Best for: Pre-split videos, individual game recordings"
+    echo ""
+    echo "2. TOURNAMENT RECORDING MODE" 
+    echo "   • One or more videos contain the entire tournament duration"
+    echo "   • Uses match time information to separate and label videos"
+    echo "   • Best for: Continuous tournament recordings, long session videos"
+    echo ""
+    
+    while true; do
+        read -p "Which processing mode would you like to use? (1 or 2): " mode_choice
+        case $mode_choice in
+            1)
+                PROCESSING_MODE="individual"
+                log_info "Selected: Individual Match Mode"
+                break
+                ;;
+            2)
+                PROCESSING_MODE="tournament"
+                log_info "Selected: Tournament Recording Mode"
+                break
+                ;;
+            *)
+                log_warning "Please enter 1 or 2"
+                ;;
+        esac
+    done
+    echo ""
+}
+
+# Individual match processing workflow
+run_individual_match_workflow() {
     local video_dir="$1"
     
-    # Validate input directory
-    if [[ ! -d "$video_dir" ]]; then
-        log_error "Directory not found: $video_dir"
-        exit 1
-    fi
-    
-    log_info "Starting GoPro video processing workflow"
+    log_info "Starting Individual Match Mode processing"
     log_info "Input directory: $video_dir"
     
     # Step 1: Fix directory names
     fix_directory_names "$video_dir"
     
-    # Step 2: Prepare games JSONL
+    # Step 2: Identify and organize individual match videos
+    log_info "Scanning for individual match videos..."
+    
+    # Look for video files in the directory
+    local video_count=0
+    for ext in MP4 mp4 MOV mov AVI avi; do
+        for video_file in "$video_dir"/*.$ext; do
+            [[ -f "$video_file" ]] && ((video_count++))
+        done
+    done
+    
+    if [[ $video_count -eq 0 ]]; then
+        log_error "No video files found in $video_dir"
+        exit 1
+    fi
+    
+    log_info "Found $video_count video file(s)"
+    
+    # Step 3: Process each video as an individual match
+    echo ""
+    log_info "Processing individual match videos..."
+    echo "For each video, you'll be asked to provide match information."
+    echo ""
+    
+    local processed_count=0
+    for ext in MP4 mp4 MOV mov AVI avi; do
+        for video_file in "$video_dir"/*.$ext; do
+            [[ -f "$video_file" ]] || continue
+            
+            local video_name=$(basename "$video_file")
+            echo "----------------------------------------"
+            log_info "Processing: $video_name"
+            
+            # Get match information from user
+            get_match_info_for_video "$video_file"
+            
+            ((processed_count++))
+        done
+    done
+    
+    log_success "Processed $processed_count individual match videos"
+}
+
+# Tournament recording processing workflow  
+run_tournament_recording_workflow() {
+    local video_dir="$1"
+    
+    log_info "Starting Tournament Recording Mode processing"
+    log_info "Input directory: $video_dir"
+    
+    # Step 1: Fix directory names
+    fix_directory_names "$video_dir"
+    
+    # Step 2: Prepare games JSONL with match timing information
     prepare_games_jsonl "$video_dir"
     local jsonl_file="$video_dir/games.jsonl"
     
     if [[ ! -f "$jsonl_file" ]]; then
-        log_error "Games JSONL file not found. Cannot proceed."
+        log_error "Games JSONL file not found. Cannot proceed with tournament recording mode."
+        log_info "You'll need to create a games.jsonl file with match timing information."
+        log_info "Run: $SCRIPT_DIR/generate_games_template.sh to create a template."
         exit 1
     fi
     
-    # Step 3: Combine GoPro videos
+    # Step 3: Combine GoPro videos if needed
     log_info "Combining GoPro videos..."
     "$SCRIPT_DIR/combine_gopro_videos.sh" "$video_dir"
     
@@ -355,11 +443,11 @@ run_workflow() {
     
     log_success "GoPro videos combined successfully"
     
-    # Step 4: Split videos based on games
+    # Step 4: Split videos based on match timing from JSONL
     local merged_dir="$video_dir/merged_videos"
     local split_dir="$video_dir/split_videos"
     
-    log_info "Splitting videos into individual games..."
+    log_info "Splitting videos into individual games using match timing..."
     
     # Process each merged video
     for merged_video in "$merged_dir"/*.MP4; do
@@ -374,49 +462,120 @@ run_workflow() {
         fi
     done
     
-    log_success "Videos split successfully"
+    log_success "Videos split successfully using match timing"
+}
+
+# Get match information for individual video
+get_match_info_for_video() {
+    local video_file="$1"
+    local video_basename=$(basename "$video_file" | sed 's/\.[^.]*$//')
     
-    # Step 5: Add metadata and rename files
-    local should_add_info="$AUTO_RENAME_FILES"
-    if [[ "$should_add_info" != "true" ]]; then
-        read -p "Add tournament/round/court information to videos? (y/n) [y]: " add_info
-        add_info=${add_info:-y}
-        should_add_info="$add_info"
+    echo ""
+    echo "Match Information for: $(basename "$video_file")"
+    echo "Please provide the following details:"
+    
+    # Get team names
+    read -p "Home team name: " home_team
+    read -p "Away team name: " away_team
+    
+    # Get match details
+    read -p "Tournament name [$DEFAULT_TOURNAMENT_NAME]: " tournament_name
+    tournament_name=${tournament_name:-$DEFAULT_TOURNAMENT_NAME}
+    
+    read -p "Court name [$DEFAULT_COURT_NAME]: " court_name  
+    court_name=${court_name:-$DEFAULT_COURT_NAME}
+    
+    read -p "Round name [$DEFAULT_ROUND_NAME]: " round_name
+    round_name=${round_name:-$DEFAULT_ROUND_NAME}
+    
+    # Optional: Get scores
+    read -p "Home team score (optional): " home_score
+    read -p "Away team score (optional): " away_score
+    
+    # Create formatted filename
+    local formatted_name=$(format_match_filename "$home_team" "$away_team" "$tournament_name" "$court_name" "$round_name")
+    
+    # Copy/rename the video file
+    local output_dir="$video_dir/processed_matches"
+    mkdir -p "$output_dir"
+    
+    local output_file="$output_dir/${formatted_name}.mp4"
+    
+    log_info "Saving as: $(basename "$output_file")"
+    cp "$video_file" "$output_file"
+    
+    if [[ $? -eq 0 ]]; then
+        log_success "Successfully processed match video"
+    else
+        log_error "Failed to process match video"
     fi
     
-    if [[ "$should_add_info" =~ ^[Yy]|^true$ ]]; then
-        read -p "Tournament name [$DEFAULT_TOURNAMENT_NAME]: " tournament_name
-        tournament_name=${tournament_name:-$DEFAULT_TOURNAMENT_NAME}
-        
-        read -p "Court name [$DEFAULT_COURT_NAME]: " court_name
-        court_name=${court_name:-$DEFAULT_COURT_NAME}
-        
-        # Ask for starting round number only if rounds aren't in JSONL
-        local has_rounds_in_jsonl=false
-        if [[ -f "$jsonl_file" ]] && jq -e '.[0].round' "$jsonl_file" >/dev/null 2>&1; then
-            has_rounds_in_jsonl=true
-            log_info "Using round information from games JSONL file"
-        else
-            read -p "Starting round number [1]: " start_round
-            start_round=${start_round:-1}
-            log_info "Using incremental round numbering starting from $start_round"
-        fi
-        
-        # Rename files first (before adding metadata to avoid file not found issues)
-        rename_video_files "$split_dir" "$tournament_name" "$court_name" "$jsonl_file" "${start_round:-1}"
-        
-        # Add metadata to renamed files (we'll extract round info from the new filenames)
-        add_video_metadata "$split_dir" "$tournament_name" "$court_name" "Round"
+    echo ""
+}
+
+# Format match filename
+format_match_filename() {
+    local home_team="$1"
+    local away_team="$2" 
+    local tournament="$3"
+    local court="$4"
+    local round="$5"
+    
+    # Clean and format team names
+    local clean_home=$(echo "$home_team" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | sed 's/_*$//' | sed 's/^_*//')
+    local clean_away=$(echo "$away_team" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | sed 's/_*$//' | sed 's/^_*//')
+    local clean_tournament=$(echo "$tournament" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | sed 's/_*$//' | sed 's/^_*//')
+    local clean_court=$(echo "$court" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | sed 's/_*$//' | sed 's/^_*//')
+    local clean_round=$(echo "$round" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | sed 's/_*$//' | sed 's/^_*//')
+    
+    echo "${clean_home}_vs_${clean_away}_${clean_tournament}_${clean_court}_${clean_round}"
+}
+
+# Main workflow function
+run_workflow() {
+    local video_dir="$1"
+    
+    # Validate input directory
+    if [[ ! -d "$video_dir" ]]; then
+        log_error "Directory not found: $video_dir"
+        exit 1
     fi
     
-    # Step 6: Cleanup (optional)
+    # Select processing mode
+    select_processing_mode
+    
+    # Run appropriate workflow based on mode
+    case $PROCESSING_MODE in
+        "individual")
+            run_individual_match_workflow "$video_dir"
+            ;;
+        "tournament")
+            run_tournament_recording_workflow "$video_dir"
+            ;;
+        *)
+            log_error "Invalid processing mode: $PROCESSING_MODE"
+            exit 1
+            ;;
+    esac
+    
+    # Final steps common to both modes
+    log_info "Cleaning up temporary files..."
+    
     if [[ "$CLEANUP_INTERMEDIATE_FILES" == "true" ]]; then
-        log_info "Cleaning up intermediate files..."
+        # Clean up intermediate files if configured
+        log_info "Removing intermediate files..."
         # Add cleanup logic here if needed
     fi
     
-    log_success "Workflow completed successfully!"
-    log_info "Final videos are in: $split_dir"
+    log_success "GoPro video processing workflow completed!"
+    echo ""
+    echo "Processed videos can be found in:"
+    if [[ "$PROCESSING_MODE" == "individual" ]]; then
+        echo "  $video_dir/processed_matches/"
+    else
+        echo "  $video_dir/split_videos/"
+    fi
+    echo ""
 }
 
 # Usage information
@@ -426,61 +585,33 @@ Usage: $0 [OPTIONS] <video_directory>
 
 GoPro Video Processing Workflow
 
-This script automates the entire process of:
-1. Fixing directory names (removing spaces)
-2. Creating/using games JSONL file
-3. Combining GoPro video segments
-4. Splitting combined videos into individual games
-5. Renaming videos with tournament/round/court information
-6. Adding metadata (tournament, round, court info)
+This script automates GoPro video processing with two modes:
+
+1. INDIVIDUAL MATCH MODE: Each video is one complete match
+2. TOURNAMENT RECORDING MODE: Long videos split using match timing
+
+The script will guide you through selecting the appropriate mode.
 
 OPTIONS:
-    -h, --help      Show this help message
-    -c, --config    Create/edit configuration file
-    -d, --debug     Enable debug mode
+    -h, --help      Show this help message  
+    -v, --version   Show version information
+    -c, --config    Specify config file path
 
 EXAMPLES:
     $0 /path/to/gopro/videos
-    $0 --config
-    $0 --debug /path/to/videos
+    $0 -c /path/to/custom/config.conf /path/to/videos
+
+For Individual Match Mode:
+    • Use when each video file represents one complete match
+    • Script will ask for team names, tournament, court, and round info
+    
+For Tournament Recording Mode:  
+    • Use when you have long recordings that need to be split
+    • Requires a games.jsonl file with match timing information
+    • Use generate_games_template.sh to create the timing template
 
 EOF
 }
-
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -h|--help)
-            show_usage
-            exit 0
-            ;;
-        -c|--config)
-            create_config
-            if command -v nano >/dev/null; then
-                nano "$CONFIG_FILE"
-            elif command -v vim >/dev/null; then
-                vim "$CONFIG_FILE"
-            else
-                log_info "Edit the configuration file: $CONFIG_FILE"
-                cat "$CONFIG_FILE"
-            fi
-            exit 0
-            ;;
-        -d|--debug)
-            set -x
-            shift
-            ;;
-        -*)
-            log_error "Unknown option: $1"
-            show_usage
-            exit 1
-            ;;
-        *)
-            VIDEO_DIR="$1"
-            shift
-            ;;
-    esac
-done
 
 # Parse command line arguments
 parse_args() {
