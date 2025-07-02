@@ -166,11 +166,12 @@ log_info "Processing videos in: $VIDEO_DIR"
 [[ "$DRY_RUN" == "true" ]] && log_warning "DRY RUN MODE - No files will be renamed"
 
 count=0
-for video_file in "$VIDEO_DIR"/*.{mp4,MP4,mov,MOV,avi,AVI} 2>/dev/null; do
-    [[ -f "$video_file" ]] || continue
-    
-    original_name=$(basename "$video_file")
-    new_name=$(build_new_name "$original_name")
+for ext in mp4 MP4 mov MOV avi AVI; do
+    for video_file in "$VIDEO_DIR"/*.$ext; do
+        [[ -f "$video_file" ]] || continue
+        
+        original_name=$(basename "$video_file")
+        new_name=$(build_new_name "$original_name")
     
     if [[ "$original_name" == "$new_name" ]]; then
         log_info "No change needed: $original_name"
@@ -190,6 +191,7 @@ for video_file in "$VIDEO_DIR"/*.{mp4,MP4,mov,MOV,avi,AVI} 2>/dev/null; do
         mv "$video_file" "$new_path"
         ((count++))
     fi
+    done
 done
 
 if [[ "$DRY_RUN" == "true" ]]; then

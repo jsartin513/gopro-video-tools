@@ -47,21 +47,33 @@ show_version() {
     echo "Copyright (c) 2025 Jessica Sartin"
 }
 
+# Version and help functions
+show_version_info() {
+    local script_name="${1:-$SCRIPT_NAME}"
+    echo "$script_name v$VERSION"
+    echo "Copyright (c) 2025 Jessica Sartin"
+}
+
 show_help() {
-    show_version
+    show_version_info
     echo ""
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: $0 [OPTIONS] <video_directory>"
+    echo ""
+    echo "This script automates GoPro video processing with two modes:"
+    echo ""
+    echo "1. INDIVIDUAL MATCH MODE: Each video is one complete match"
+    echo "2. TOURNAMENT RECORDING MODE: Long videos split using match timing"
+    echo ""
+    echo "The script will guide you through selecting the appropriate mode."
     echo ""
     echo "Options:"
     echo "  -h, --help     Show this help message"
     echo "  -v, --version  Show version information"
-    echo "  -c, --config   Specify config file (default: ../config/gopro_config.conf)"
+    echo "  -c, --config   Specify config file path"
     echo ""
-    echo "This script automates the entire GoPro video processing workflow:"
-    echo "1. Batch rename raw GoPro files"
-    echo "2. Combine multi-part videos"
-    echo "3. Split combined videos into individual games"
-    echo "4. Apply metadata and organize files"
+    echo "Examples:"
+    echo "  $0 /path/to/gopro/videos"
+    echo "  $0 -c /path/to/custom/config.conf /path/to/videos"
     echo ""
 }
 
