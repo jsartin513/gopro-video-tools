@@ -634,7 +634,7 @@ parse_args() {
                 exit 0
                 ;;
             -v|--version)
-                show_version
+                show_version_info
                 exit 0
                 ;;
             -c|--config)

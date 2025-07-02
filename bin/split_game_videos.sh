@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # Exit on any error
+
 # Usage: split_game_videos.sh <video_file> <games_jsonl> [--debug]
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   echo "Usage: $0 <video_file> <games_jsonl> [--debug]"

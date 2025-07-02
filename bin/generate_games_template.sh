@@ -89,6 +89,11 @@ add_minutes() {
     # Convert time to total minutes
     local hours=${time%:*}
     local mins=${time#*:}
+    
+    # Strip leading zeros to avoid octal interpretation
+    hours=$((10#$hours))
+    mins=$((10#$mins))
+    
     local total_minutes=$((hours * 60 + mins + minutes))
     
     # Convert back to HH:MM format

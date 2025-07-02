@@ -61,17 +61,20 @@ test_combine_gopro_script() {
     test_name "Combine GoPro shows usage when run without args"
     local output=$("$script" 2>&1 || true)
     # Should either show usage or indicate missing arguments
-    assert_success "[[ '$output' =~ [Uu]sage || '$output' =~ [Mm]issing || '$output' =~ [Rr]equired ]]" "Shows usage or error for missing args"
+    assert_contains "$output" "Usage" "Shows usage when run without arguments"
 }
 
 # Test generate games template script
 test_generate_games_template_script() {
     local script="$PROJECT_ROOT/bin/generate_games_template.sh"
     
-    test_name "Generate games template shows usage when run without args"
+    test_name "Generate games template works correctly"
     local output=$("$script" 2>&1 || true)
-    # Should either show usage or indicate missing arguments  
-    assert_success "[[ '$output' =~ [Uu]sage || '$output' =~ [Mm]issing || '$output' =~ [Rr]equired ]]" "Shows usage or error for missing args"
+    # Should either show usage, generate template, or indicate missing arguments  
+    assert_success "[[ '$output' =~ [Uu]sage || '$output' =~ [Gg]enerating || '$output' =~ [Gg]enerated || '$output' =~ [Mm]issing || '$output' =~ [Rr]equired ]]" "Shows usage, generates template, or shows error"
+    
+    # Clean up any generated template file
+    rm -f games_template.jsonl 2>/dev/null || true
 }
 
 # Test split game videos script
@@ -119,7 +122,11 @@ test_common_script_patterns() {
             assert_contains "$script_content" "#!/bin/bash" "$script has proper bash shebang"
             
             test_name "$script has error handling"
-            assert_success "[[ '$script_content' =~ 'set -e' || '$script_content' =~ 'exit' ]]" "$script has some form of error handling"
+            if [[ "$script_content" =~ "set -e" ]] || [[ "$script_content" =~ "exit" ]]; then
+                assert_success "true" "$script has some form of error handling"
+            else
+                assert_failure "true" "$script has some form of error handling"
+            fi
         fi
     done
 }

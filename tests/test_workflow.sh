@@ -58,17 +58,15 @@ test_version_functionality() {
 # Test error handling
 test_error_handling() {
     test_name "Missing directory argument shows usage"
-    local output=$("$WORKFLOW_SCRIPT" 2>&1)
-    local exit_code=$?
+    assert_failure "$WORKFLOW_SCRIPT" "Missing argument fails (exits with non-zero code)"
     
-    assert_equals "1" "$exit_code" "Missing argument exits with code 1"
+    local output=$("$WORKFLOW_SCRIPT" 2>&1 || true)
     assert_contains "$output" "Usage:" "Missing argument shows usage"
     
-    test_name "Non-existent directory shows error"
-    local output=$("$WORKFLOW_SCRIPT" "/nonexistent/directory/12345" 2>&1)
-    local exit_code=$?
+    test_name "Non-existent directory shows error" 
+    assert_failure "$WORKFLOW_SCRIPT /nonexistent/directory/12345" "Non-existent directory fails (exits with non-zero code)"
     
-    assert_equals "1" "$exit_code" "Non-existent directory exits with code 1"
+    local output=$("$WORKFLOW_SCRIPT" "/nonexistent/directory/12345" 2>&1 || true)
     assert_contains "$output" "Directory not found" "Error message for non-existent directory"
 }
 
