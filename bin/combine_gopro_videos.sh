@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # Exit on any error
+
 # Check if a directory is provided
 if [ -z "$1" ]; then
   echo "Usage: $0 <input_directory> [output_directory]"
