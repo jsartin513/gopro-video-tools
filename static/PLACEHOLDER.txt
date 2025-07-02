@@ -1,0 +1,1 @@
+# Copy static files such as bdl_rectangle_logo.png, font.ttf, etc. here.

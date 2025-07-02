@@ -1,0 +1,8 @@
+# Copy these files into this directory:
+# - combine_gopro_videos.sh
+# - gopro_workflow.sh
+# - batch_rename_videos.sh
+# - install.sh
+# - split_game_videos.sh
+# - generate_games_template.sh
+# - Any other workflow-related bash scripts

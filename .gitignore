@@ -1,0 +1,32 @@
+# Output directories
+output/
+processed_videos/
+temp/
+tmp/
+
+# Video files
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Config files with sensitive data
+config/*_private.conf
+config/local_*.conf
+
+# Logs
+*.log
+logs/
+
+# macOS
+.DS_Store
+
+# Editor files
+.vscode/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
