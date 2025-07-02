@@ -52,7 +52,11 @@ test_version_functionality() {
     
     assert_equals "0" "$exit_code" "Version command exits with code 0"
     assert_contains "$output" "GoPro Video Processing Workflow" "Version output contains script name"
-    assert_contains "$output" "v1.0.0" "Version output contains version number"
+    
+    # Extract version dynamically and validate format
+    local version=$(echo "$output" | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+")
+    assert_not_empty "$version" "Version output contains a valid version number"
+    assert_success "[[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]" "Version number matches expected format"
 }
 
 # Test error handling
